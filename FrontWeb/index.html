@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>UserTable</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <table class="table">
+        <tr>
+            <td class="rowName">Id</td>
+            <td>
+                <p id="txtId"></p>
+            </td>
+        </tr>
+        <tr>
+            <td class="rowName">Имя</td>
+            <td>
+                <input type="text" name="Name" id="txtName" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td class="rowName">Фамилия</td>
+            <td>
+                <input type="text" name="SecondName" id="txtSecondName" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td class="rowName">Возраст</td>
+            <td>
+                <input type="text" name="Age" id="txtAge" value="" />
+            </td>
+        </tr>
+		<tr>
+            <td class="rowName">Почта</td>
+            <td>
+                <input type="text" name="Email" id="txtEmail" value="" />
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <button type='button' id='btnAdd' onclick="AddUserToTable()"> Добавить пользователя</button>
+                <button type='button' id='btnUpdate' onclick="UpdateUserFromTable()" style="display: none;">Редактировать пользователя</button>
+            </td>
+            <td>
+                <button type='button' id='btnClear' onclick="ClearWithoutId()">Очистить введенные данные</button>
+            </td>
+			<td>
+                <button type='button' id='btnCancel' onclick="CancelUpdate()" style="display: none;">Отменить редактирование</button>
+            </td>
+        </tr>
+    </table>
+    <table class="main-table" id="tblCustomers" class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Имя</th>
+                <th>Фамилия</th>
+                <th>Возраст</th>
+                <th>Почта</th>
+                <th>Редактировать</th>
+                <th>Удалить</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script type="text/javascript">
+	
+		const url = "https://localhost:44325";
+
+        var edit = "<a class='edit' href='JavaScript:void(0);' >Редактировать</a>";
+        var del = "<a class='delete' href='JavaScript:void(0);'>Удалить</a>";
+
+        var currentRowNumber = 0;
+
+        class User
+        {
+            name;
+            secondName;
+            age;
+            email;
+
+            constructor(name, secondName, age, email)
+            {
+                this.name = name;
+                this.secondName = secondName;
+                this.age = age;
+                this.email = email;
+            }
+        }
+
+        function CheckValidResponse(response)
+        {
+            if (response.ok)
+                    return true
+            if (response.status === 400)
+            {
+                response.json().then(json => 
+                {
+                    if (json != null && json.ErrorText != null && json.ErrorText != "") 
+                        alert(json.ErrorText)
+                });
+                return false;
+            }
+            alert("На данный момент сервер недоступен. Пожалуйста, попробуйте позже :)");
+            throw new Error(response);
+        }
+
+		GetAllUsers();
+
+		function GetAllUsers()
+		{
+            fetch(url + "/users/")
+            .then(response =>
+            { 
+                if (CheckValidResponse(response))
+                    return response.json();
+                else 
+                    return null;
+            })
+            .then(json => {
+                if (json == null)
+                    return;
+                for (let i = 0; i < json.length; i++)
+				{
+					var row = "<tr><td>" + json[i].id + "</td><td>" + json[i].name + "</td><td>" + json[i].secondName + "</td><td>" + json[i].age + "</td><td>" + json[i].email + "</td><td>" + edit + "</td><td>" + del + "</td></tr>";
+                    $("#tblCustomers").append(row);
+				}
+            })
+            .catch(err => 
+            {
+                console.log(err);
+            });
+		}
+
+        async function AddUser(user)
+        {
+            await fetch(url + "/users",
+            {
+                method: "POST",
+                headers: 
+                {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(user),
+            })
+            .then(response => 
+            {
+                if (CheckValidResponse(response))
+                    return response.json();
+                else 
+                    return null;
+            })
+            .then(json => {
+                if (json == null)
+                    return;
+                var row = "<tr><td>" + json.id + "</td><td>" + json.name + "</td><td>" + json.secondName + "</td><td>" + json.age + "</td><td>" + json.email + "</td><td>" + edit + "</td><td>" + del + "</td></tr>";
+                $("#tblCustomers").append(row);
+            })
+            .catch(err => console.log(err));
+        }
+
+        async function UpdateUser(id, user)
+        {
+            await fetch(url + "/users/" + id,
+            {
+                method: "PUT",
+                headers: 
+                {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(user),
+            })
+            .then(response => {
+                if (CheckValidResponse(response))
+                {
+                    $('#tblCustomers tbody tr').eq(currentRowNumber).find('td').eq(1).html(user.name);
+				    $('#tblCustomers tbody tr').eq(currentRowNumber).find('td').eq(2).html(user.secondName);
+                    $('#tblCustomers tbody tr').eq(currentRowNumber).find('td').eq(3).html(user.age);
+                    $('#tblCustomers tbody tr').eq(currentRowNumber).find('td').eq(4).html(user.email);
+                }
+            })
+            .catch(err => console.log(err));
+        }
+
+        async function DeleteUser(id, e)
+        {
+            try
+            {
+                var response = await fetch (url + "/users/" + id,
+                {
+                    method: "DELETE",
+                });
+
+                return CheckValidResponse(response);
+            }
+            catch(err)
+            {
+                console.log(err);
+                return false;
+            }
+        }
+
+        async function AddUserToTable() 
+        {
+            var user = new User($("#txtName").val(), $("#txtSecondName").val(), 
+                            $("#txtAge").val(), $("#txtEmail").val());
+        
+            if (isValidUser(user))
+            {
+                await AddUser(user);
+                Clear();
+            }
+        }
+
+        async function UpdateUserFromTable() 
+        {
+            var id = $('#tblCustomers tbody tr').eq(currentRowNumber).find('td').eq(0).html();
+            var user = new User($("#txtName").val(), $("#txtSecondName").val(), 
+                            $("#txtAge").val(), $("#txtEmail").val());
+            
+            if (isValidUser(user))
+            {
+                await UpdateUser(id, user);
+
+                $('#btnAdd').show();
+                $('#btnUpdate').hide();
+                $('#btnCancel').hide();
+                Clear();
+            }
+            
+        }
+
+        function CancelUpdate()
+        {	
+            Clear();
+            $('#btnAdd').show();
+            $('#btnUpdate').hide();
+            $('#btnCancel').hide();
+            
+        }
+		
+        function Clear() 
+        {
+            $('#txtId').text("");
+            $("#txtName").val("");
+            $("#txtSecondName").val("");
+            $("#txtAge").val("");
+            $("#txtEmail").val("");
+        }
+
+        function ClearWithoutId() 
+        {
+            $("#txtName").val("");
+            $("#txtSecondName").val("");
+            $("#txtAge").val("");
+            $("#txtEmail").val("");
+        }
+
+        function isValidAge(str) 
+        {
+            var n = Math.floor(Number(str));
+            return n !== Infinity && String(n) === str && n >= 14 && n <= 150;
+        }   
+
+        function isValidUser(user)
+        {
+            if (user.name == "" || user.secondName == "" || user.age == "" || user.email == "")
+            {
+               alert("Необходимо заполнить все поля");
+               return false;
+            }
+            if (!isValidAge(user.age))
+            {
+                alert("Неправильно указан возраст пользователя. Он может быть от 14 до 150");
+                return false;
+            }
+            return true;
+        }
+
+        $(function () { 
+
+            $("#tblCustomers").on("click", ".delete", async function (e) {
+                if (confirm("Вы действительно хотите удалить пользователя?")) {
+                    var id = $(this).closest('tr').find('td').eq(0).html();
+                    var valid = await DeleteUser(id);
+                    if (valid)
+                        $(this).closest('tr').remove();
+                } else {
+                    e.preventDefault();
+                }
+            });
+
+            $("#tblCustomers").on("click", ".edit", function () {		
+				
+				$('#btnCancel').show();
+			
+                var row = $(this).closest('tr');
+                currentRowNumber = $(row).index();
+                var td = $(row).find("td");
+                $('#txtId').text($(td).eq(0).html());
+                $('#txtName').val($(td).eq(1).html());
+                $('#txtSecondName').val($(td).eq(2).html());
+                $('#txtAge').val($(td).eq(3).html());
+                $('#txtEmail').val($(td).eq(4).html());
+                $('#btnAdd').hide();
+                $('#btnUpdate').show();
+            });
+        });
+
+    </script>
+</body>
+</html>
